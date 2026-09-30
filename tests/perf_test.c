@@ -12,12 +12,12 @@
 #include <netinet/quic.h>
 #include <sys/syslog.h>
 
-#define SND_MSG_LEN	4096
+#define SND_MSG_LEN	4096 * 16
 #define RCV_MSG_LEN	4096 * 16
 #define REQ_MSG_LEN	1024
 #define RSP_MSG_LEN	1024
 #define ALPN_LEN	20
-#define TOT_LEN		1 * 1024 * 1024 * 1024
+#define TOT_LEN		1024LL * 1024LL * 1024LL * 32LL
 #define NUM_REQUESTS	100000
 
 #define SECONDS		1000000
@@ -84,7 +84,7 @@ static void print_usage(char *cmd)
 	printf("    --no_crypt/-x <x>:      disable 1rtt encryption\n\n");
 	printf("  Throughput mode (--mode 0):\n");
 	printf("    --msg_len/-m <m>:       message length to send (default: %d)\n", SND_MSG_LEN);
-	printf("    --tot_len/-t <t>:       total length to send (default: %d)\n\n", TOT_LEN);
+	printf("    --tot_len/-t <t>:       total length to send (default: %lld)\n\n", TOT_LEN);
 	printf("  Request/Response mode (--mode 1):\n");
 	printf("    --req_len/-q <q>:       request message length (default: %d)\n", REQ_MSG_LEN);
 	printf("    --rsp_len/-r <r>:       response message length (default: %d)\n", RSP_MSG_LEN);
@@ -167,8 +167,9 @@ static int parse_options(int argc, char *argv[], struct options *opts)
 
 static int do_server_throughput(struct options *opts, int sockfd)
 {
-	uint32_t flags = 0, len = 0;
+	uint32_t flags = 0;
 	int64_t sid = 0;
+	uint16_t len = 0;
 	int ret;
 
 	printf("Running in THROUGHPUT mode\n");
@@ -183,10 +184,10 @@ static int do_server_throughput(struct options *opts, int sockfd)
 		usleep(20);
 		if (flags & MSG_QUIC_STREAM_FIN)
 			break;
-		printf("  recv len: %u, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
+		printf("  recv len: %lu, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
 	}
 
-	printf("RECV DONE: tot_len %u, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
+	printf("RECV DONE: tot_len %lu, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
 
 	flags = MSG_QUIC_STREAM_FIN;
 	strcpy(snd_msg, "recv done");
@@ -275,6 +276,7 @@ static int do_server(struct options *opts)
 		}
 		if (bind(listenfd, (struct sockaddr *)&la, sizeof(la))) {
 			printf("socket bind failed\n");
+                        printf("Err: %s", strerror(errno));
 			return -1;
 		}
 		goto listen;
@@ -358,7 +360,8 @@ static uint64_t get_now_time_us(void)
 
 static int do_client_throughput(struct options *opts, int sockfd)
 {
-	uint32_t len = 0, flags;
+	uint32_t flags;
+	uint64_t len = 0;
 	uint64_t start, end;
 	int64_t sid = 0;
 	float rate;
@@ -384,7 +387,7 @@ static int do_client_throughput(struct options *opts, int sockfd)
 		}
 		len += ret;
 		if (!(len % (opts->msg_len * 1024)))
-			printf("  send len: %u, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
+			printf("  send len: %lu, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
 		if (len > opts->tot_len - opts->msg_len)
 			break;
 	}
@@ -395,7 +398,7 @@ static int do_client_throughput(struct options *opts, int sockfd)
 		return -1;
 	}
 	len += ret;
-	printf("SEND DONE: tot_len: %u, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
+	printf("SEND DONE: tot_len: %lu, stream_id: %d, flags: %u.\n", len, (int)sid, flags);
 
 	memset(rcv_msg, 0, sizeof(rcv_msg));
 	ret = quic_recvmsg(sockfd, rcv_msg, opts->msg_len * 16, &sid, &flags);
@@ -408,7 +411,7 @@ static int do_client_throughput(struct options *opts, int sockfd)
 	rate = ((float)opts->tot_len * 8 * 1000) / 1024 / start;
 
 	printf("\n=== Throughput Results ===\n");
-	printf("Total sent:       %u bytes\n", len);
+	printf("Total sent:       %lu bytes\n", len);
 	printf("Message size:     %llu bytes\n", (unsigned long long)opts->msg_len);
 	printf("Total time:       %llu ms (%.3f sec)\n", (unsigned long long)start, start / 1000.0);
 	if (rate < 1024)

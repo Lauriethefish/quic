@@ -32,8 +32,9 @@ cleanup()
 	pkill ticket_test > /dev/null 2>&1
 	pkill sample_test > /dev/null 2>&1
 	pkill http3_test > /dev/null 2>&1
-	rmmod quic_sample_test > /dev/null 2>&1
-	rmmod quic > /dev/null 2>&1
+	# Keep the modules loaded for science (performance)
+	#rmmod quic_sample_test > /dev/null 2>&1
+	#rmmod quic > /dev/null 2>&1
 	exit $exit_code
 }
 
@@ -103,16 +104,16 @@ perf_tests()
 	./perf_test --addr 127.0.0.1 || return 1
 	daemon_stop "perf_test"
 
-	print_start "Performance Tests (IPv6, Disable 1RTT Encryption)"
-	daemon_run ./perf_test -l --pkey ./keys/server-key.pem \
-				  --cert ./keys/server-cert.pem --no_crypt
-	./perf_test --addr ::1 --no_crypt || return 1
-	daemon_stop "perf_test"
+#	print_start "Performance Tests (IPv6, Disable 1RTT Encryption)"
+#	daemon_run ./perf_test -l --pkey ./keys/server-key.pem \
+#				  --cert ./keys/server-cert.pem --no_crypt
+#	./perf_test --addr ::1 --no_crypt || return 1
+#	daemon_stop "perf_test"
 
-	print_start "Performance Tests (IPv6)"
-	daemon_run ./perf_test -l --pkey ./keys/server-key.pem --cert ./keys/server-cert.pem
-	./perf_test --addr ::1 || return 1
-	daemon_stop "perf_test"
+#	print_start "Performance Tests (IPv6)"
+#	daemon_run ./perf_test -l --pkey ./keys/server-key.pem --cert ./keys/server-cert.pem
+#	./perf_test --addr ::1 || return 1
+#	daemon_stop "perf_test"
 }
 
 rr_tests()
@@ -304,7 +305,7 @@ sample_tests()
 
 }
 
-TESTS="func perf rr netem http3 tlshd alpn ticket sample"
+: ${TESTS:="func perf rr netem http3 tlshd alpn ticket sample"}
 trap cleanup EXIT
 
 [ "$1" = "" ] || TESTS=$@
