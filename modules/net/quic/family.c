@@ -169,7 +169,7 @@ static void quic_v4_lower_xmit(struct sock *sk, struct sk_buff *skb,
 	struct dst_entry *dst;
 	__be16 df = 0;
 
-	pr_debug("%s: skb: %p, len: %u, num: %lld, %pI4:%d -> %pI4:%d\n",
+	printk(KERN_INFO "%s: skb: %p, len: %u, num: %lld, %pI4:%d -> %pI4:%d\n",
 		 __func__, skb, skb->len, cb->number, &fl4->saddr,
 		 ntohs(fl4->fl4_sport), &fl4->daddr, ntohs(fl4->fl4_dport));
 
